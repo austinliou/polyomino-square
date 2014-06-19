@@ -1,0 +1,126 @@
+<html>
+<body oncontextmenu="return false;">
+<div id="container"></div>
+<script type="text/javascript" src="kinetic-v5.1.0.min.js"></script>
+<script type="text/javascript" src="polyomino.js"></script>
+<script defer="defer">
+var shapeFuncs = [];
+function randChoice(choices) { return choices[randInt(0, choices.length-1)]; }
+function randInt(a, b) { return a + Math.floor(Math.random() * (1 + b - a)); }
+//Add shape constructors to an array
+for(var v in shapeFactory){
+	shapeFuncs.push(shapeFactory[v]);
+}
+var colors = ['red','orange','yellow','green','blue','purple'];
+var stage = new Kinetic.Stage({
+	container: 'container',
+	width: 1024,
+	height: 768,
+	fill: 'yellow'
+});
+
+//Construct individual square pieces that form the polyomino
+addShapePieces = function(group, shape, color){
+	for(var i=0; i<shape.x.length; i++){
+		var box = new Kinetic.Rect({
+			x:blkSz*shape.x[i],
+			y:blkSz*shape.y[i],
+			width: blkSz,
+			height: blkSz,
+			fill: color,
+			stroke: 'black',
+			strokeWidth: 2
+		})
+		group.add(box);
+	}
+}
+
+var layer = new Kinetic.Layer();
+var bg = new Kinetic.Rect({
+	x:0,
+	y:0,
+	width:stage.getWidth(),
+	height:stage.getHeight(),
+	stroke:0
+});
+layer.add(bg);
+stage.add(layer);
+
+var blkSz = 20;
+addShape = function(shape){
+	var group = new Kinetic.Group({
+		x:blkSz*shape.offset[0],
+		y:blkSz*shape.offset[1]
+	});
+	var color = randChoice(colors)
+	addShapePieces(group, shape, color);
+	layer.add(group);
+	return group;
+}
+
+var leSquare = new Shape([],[]);
+var gMax = new Kinetic.Group({
+	x:0,
+	y:0
+});
+layer.add(gMax);
+var currGrid = [-1,-1];
+s = shapeFactory['cross5']();
+var g = addShape(s);
+var canvas = layer.getCanvas().getContext();
+layer.on('mousemove', function(){
+	var mousePos = stage.getPointerPosition();
+	var grid = [(mousePos.x/20)|0, (mousePos.y/20)|0];
+	if(grid[0] != currGrid[0] || grid[1] != currGrid[1]){	//mouse pos has changed
+		s.offset = [grid[0]-s.origin[0],grid[1]-s.origin[1]];
+		if(!(leSquare.intersects(s))){
+			g.x(blkSz*s.offset[0]);
+			g.y(blkSz*s.offset[1]);
+			stage.draw();
+		}
+	}
+});
+layer.on('mouseup', function(event){
+	var mousePos = stage.getPointerPosition();
+	var grid = [(mousePos.x/20)|0, (mousePos.y/20)|0];
+	switch(event.evt.which){	//Kinetic.js 5.0.1 previously used event.which
+		case 1:	//Left click
+			if(!(leSquare.intersects(s))){
+				leSquare.merge(s);
+				s = randChoice(shapeFuncs)();
+				g = addShape(s);
+				stage.draw();
+			}
+			//Calculate the maximum square in the merged shape
+			var maxSquare = leSquare.toBinShape().maxSquare();
+			gMax.removeChildren();
+			var maxBox = new Kinetic.Rect({
+				x:0,
+				y:0,
+				width: maxSquare[0]*blkSz,
+				height: maxSquare[0]*blkSz,
+				fill: 'white',
+				stroke: 'red',
+				strokeWidth: 10
+			});
+			gMax.add(maxBox);
+			gMax.x((leSquare.offset[0]+maxSquare[1])*blkSz);
+			gMax.y((leSquare.offset[1]+maxSquare[2])*blkSz);
+			stage.draw();
+			break;
+		case 3:	//Right click
+			s.rotate(1);
+			//s.offset = [grid[0]-s.origin[0],grid[1]-s.origin[1]];
+			var color = g.getChildren()[0].fill();
+			g.removeChildren();
+			addShapePieces(g,s,color);
+			g.x(blkSz*s.offset[0]);
+			g.y(blkSz*s.offset[1]);
+			//gMax.moveToTop();
+			stage.draw();
+			break;
+	}
+});
+</script>
+</body>
+</html>
